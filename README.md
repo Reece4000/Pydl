@@ -1,2 +1,2 @@
 # Pydle
- A Wordle clone, made using Python and Tkinter
+ A Wordle clone, made using Python and Tkinter.
