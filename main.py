@@ -269,7 +269,7 @@ class App(tk.Tk):
         self.entry.delete(0, tk.END)
         return guess
 
-    def draw_qwerty(self, update=False):
+    def draw_qwerty(self):
         for button in self.qwerty_frame.winfo_children():
             button.destroy()
         self.top_row = tk.LabelFrame(self.qwerty_frame, bg=TXT_COL)
