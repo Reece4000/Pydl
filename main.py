@@ -27,27 +27,27 @@ BTN_COL = "#ffdd7d"
 BTN_FG = "#4d4b46"
 HILITE = "#ffc930"
 TXT_COL = "#2e2201"
-MSG = {
-    0: "unlucky.",
-    1: "OK, not bad.",
-    2: "great.",
-    3: "brilliant.",
-    4: "impressive, very nice.",
-    5: "wow - nice work.",
-    6: ":O !!!"
+MSG = {  # added numbers represent pauses when the text is drawn
+    0: "2unlucky.",
+    1: "3OK, not bad.",
+    2: "4great.",
+    3: "3brilliant.",
+    4: "3impressive, 1very nice.",
+    5: "4wow - nice work.",
+    6: "6:O !!!"
 }
-GREETINGS = [
-    "hey.",
+GREETINGS = [  # added numbers represent pauses when the text is drawn
+    "hey!",
     "how's it going?",
-    "welcome to pydl.",
-    "hi - literacy is important.",
-    "oh, hey...",
-    "good day.",
-    "well hello.",
+    "welcome to pydl!",
+    "hi1.1.1.1 1literacy is important!",
+    "oh1.1.1.1 2hey1.1.1.1",
+    "good day!",
+    "well hello!",
     "hi there!",
-    "oh, hi... didn't see you there.",
+    "oh, hi1.1.1.1 2didn't see you there!",
     "what's up?",
-    "the name's pydl."
+    "the name's1.1.1.1 2pydl."
 ]
 
 
@@ -96,7 +96,7 @@ class GameState:
 
     def logic(self, app):
         if self.won:
-            # player_data = ["name", "date", "time", "time taken"]
+            # data = ["name", "date", "time", "time taken"]
             data = [app.entry.get().upper(),
                     str(date.today().strftime("%d/%m/%y")),
                     self.guess_num + 1,
@@ -112,12 +112,11 @@ class GameState:
             app.entry.delete(0, tk.END)
             app.new_game()
             guess_str = str(data[2]) + " guesses!" if self.guess_num > 1 else str(data[2]) + " guess!"
-            app.tip.config(text=str(data[0]) + " got it in " + time_str + " with " + guess_str)
+            app.update_tip(str(data[0]) + " got it in " + time_str + " with " + guess_str, pauses=False)
             self.won = False
         elif self.guess_num == 6 and not self.won:
             app.entry.delete(0, tk.END)
-            app.tip.config(text="Press NEW to start a new game.")
-            return
+            app.update_tip("Press NEW to start a new game.")
         else:
             guess = app.get_guess()
             if not guess:
@@ -131,15 +130,14 @@ class GameState:
                 self.won = True
                 if not self.guess_num == 0:
                     self.time_taken = time.perf_counter() - self.time_start
-                app.tip.config(text="you did it! enter your initials:")
-                return
+                app.update_tip("you did it!2 enter your initials:")
+            elif self.guess_num == 5:
+                app.update_tip("you failed1.1.1.2 '" + self.goal_word + "' was the word.")
             else:
-                app.tip.config(text=guess + "... " + msg)
-            self.guess_num += 1
-            if self.guess_num == 1:
-                self.time_start = time.perf_counter()
-            elif self.guess_num == 6:
-                app.tip.config(text="you failed - '" + self.goal_word + "' was the word.")
+                app.update_tip(guess + "... " + msg)
+                if self.guess_num == 0:
+                    self.time_start = time.perf_counter()
+                self.guess_num += 1
 
     def eval_guess(self):
         word_arr = [*(self.goal_word.upper())]
@@ -195,11 +193,13 @@ class App(tk.Tk):
         self.leaderboard_headers = [0 for x in range(5)]
         self.pydle.pack()
 
-        self.button_frame = tk.LabelFrame(self, bd=0, bg=MAIN_BG)
+        self.button_frame = tk.Canvas(self, bd=0, bg=MAIN_BG)
         self.button_frame.pack(pady=0)
 
-        self.tip = tk.Label(self, text="", font=(FNT, 18, BLD), bg=MAIN_BG)
-        self.tip.pack(pady=15)
+        self.tip_canvas = tk.Canvas(self, width=500, height=40, bg=MAIN_BG, bd=0, highlightthickness=0, relief='ridge')
+        self.tip_canvas.pack(pady=15)
+        self.tip = self.tip_canvas.create_text(250, 20, text='', anchor=tk.CENTER, font=(FNT, 18, BLD))
+
         self.entry_frame = tk.LabelFrame(self, bg=MAIN_BG, bd=0)
         self.entry_frame.pack()
         self.entry = tk.Entry(self.entry_frame, bg=HILITE, font=(FNT, 36, BLD), width=13, justify=tk.CENTER, bd=3)
@@ -207,22 +207,37 @@ class App(tk.Tk):
         self.cmd_btn_frame = tk.LabelFrame(self, bd=0, bg=MAIN_BG)
         self.cmd_btn_frame.pack()
         self.clr_btn = tk.Button(self.cmd_btn_frame, text="CLEAR", font=(FNT, 12, BLD), bd=2, bg=HILITE, fg=TXT_COL,
-                                 width=12, command=lambda: self.send_btn(27, self.app.game))
+                                 width=12, command=lambda: self.send_btn(27))
         self.enter_btn = tk.Button(self.cmd_btn_frame, text="ENTER", font=(FNT, 12, BLD), bd=2, bg=HILITE, fg=TXT_COL,
                                    width=12, command=lambda: self.game.logic(self))
         self.clr_btn.pack(side=tk.LEFT, padx=20, pady=10)
         self.enter_btn.pack(side=tk.RIGHT, padx=20, pady=10)
         self.entry.focus()
-        self.qwerty_frame = tk.LabelFrame(self, bg=MAIN_BG, bd=0)
+        self.qwerty_frame = tk.Canvas(self, bg=MAIN_BG, bd=0, highlightthickness=0, relief='ridge')
         self.qwerty_frame.pack(pady=15)
         self.entry.bind('<Return>', lambda x=None: self.game.logic(self))
         self.redraw()
-        self.tip.config(text=random.choice(GREETINGS))
+        self.update_tip(random.choice(GREETINGS))
+
+    def update_tip(self, tip_str, pauses=True):
+        delta = 30
+        delay = 0
+        for x in range (len(tip_str)+1):
+            sleep = 0
+            t = tip_str[:x]
+            if pauses and len(t) > 1:
+                if t[-1].isdigit():
+                    sleep = int(t[-1])*50
+                    t = t[:-1]
+                    tip_str = tip_str[:len(t)] + tip_str[len(t)+1:]
+            new = lambda t=t: self.tip_canvas.itemconfigure(self.tip, text=t)
+            self.tip_canvas.after(delay+sleep,new)
+            delay += delta + sleep
 
     def new_game(self):
         self.entry.delete(0, tk.END)
         self.game = GameState(self.game.db)
-        self.tip.config(text=random.choice(GREETINGS))
+        self.update_tip(random.choice(GREETINGS))
         self.redraw()
 
     def redraw(self):
@@ -244,12 +259,12 @@ class App(tk.Tk):
                                                bd=border, bg=colour, fg=TXT_COL, width=4, height=1)
                 self.btn[row][col].grid(column=col, row=row)
 
-    def send_btn(self, x, game):
+    def send_btn(self, x):
         if x == 27:
             self.entry.delete(0, tk.END)
             self.entry.focus()
         elif x == 26:
-            game.logic(self)
+            self.game.logic(self)
             self.entry.focus()
         else:
             self.entry.insert(tk.END, QWERTY[x])
@@ -257,11 +272,11 @@ class App(tk.Tk):
     def get_guess(self):
         guess = self.entry.get().upper()
         if len(guess) != 5:
-            self.tip.config(text="five letter words, please.")
+            self.update_tip("five letter words, 1please.")
             self.entry.delete(0, tk.END)
             return False
         if guess.lower() not in FULL_WORD_ARRAY:
-            self.tip.config(text="'" + guess + "' is not a valid word.")
+            self.update_tip("'" + guess + "' is not a valid word.")
             self.entry.delete(0, tk.END)
             return False
         self.game.guesses[self.game.guess_num] = [*(self.entry.get().upper())]
@@ -292,7 +307,7 @@ class App(tk.Tk):
                 frame = self.third_row
                 current_row = 2
             self.btn[x] = tk.Button(frame, text=ltr, font=(FNT, 14, BLD), bd=6,
-                                    bg=col, fg=TXT_COL, command=lambda x=x: self.send_btn(x, self.game))
+                                    bg=col, fg=TXT_COL, command=lambda x=x: self.send_btn(x))
             self.btn[x].grid(column=x, row=current_row)
             qwerty += 1
 
@@ -300,8 +315,11 @@ class App(tk.Tk):
         if self.ldrboard_btn['text'] == "(BACK)":
             self.ldrboard_btn['text'] = "(SCORES)"
             self.draw_main_panel()
+            self.update_tip("hello again!")
         else:
             self.ldrboard_btn['text'] = "(BACK)"
+            self.prev_tip = self.tip_canvas.itemcget(self.tip, 'text')
+            self.update_tip("this is the pydl leaderboard.")
             headers = ['INITIALS', 'DATE', 'ATTEMPTS', 'TIME', 'WORD']
             if self.button_frame is not None:
                 for button in self.button_frame.winfo_children():
