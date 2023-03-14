@@ -3,7 +3,6 @@ from tkinter import ttk
 import random
 import sqlite3 as sq
 from datetime import date
-from datetime import timedelta
 import time
 
 # ------------------------------------------------------------
