@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import random
 import sqlite3 as sq
-from datetime import date, datetime
+from datetime import date
 import time
 
 # ------------------------------------------------------------
@@ -95,7 +95,6 @@ class GameState:
         self.time_taken = 0
         self.eval_grid = [[None for x in range(5)] for y in range(6)]
         self.resigned = False
-        print(self.goal_word)
 
     def logic(self, app):
         if self.won:
@@ -194,7 +193,7 @@ class GameState:
 class Timer:
     def __init__(self, frame):
         self.counter = 0
-        self.time_str = datetime.fromtimestamp(self.counter).strftime("0m 00s")
+        self.time_str = format_time(self.counter)
         self.mFrame = frame
         self.watch = tk.Label(self.mFrame, text=self.time_str, font=(FNT, 13, BLD), bg=MAIN_BG,
                               bd=0, fg=TXT_COL, anchor=tk.E)
