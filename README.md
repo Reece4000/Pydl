@@ -7,4 +7,6 @@ The game incorporates an SQLite database, which is used to keep track of player 
 
 ![image](https://user-images.githubusercontent.com/83663539/225411846-e50433e1-f62a-44a1-bc3b-f4c7fd45b901.png)
 
+Players can resign and start a new game at any point.
+
 ![image](https://user-images.githubusercontent.com/83663539/225411900-6d5071b6-86b6-4c60-882d-f1847d2c4c48.png)
