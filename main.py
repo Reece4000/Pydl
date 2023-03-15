@@ -83,7 +83,6 @@ class PydlDatabase:
 
 class GameState:
     def __init__(self, db):
-        self.screen = 0
         self.db = db
         self.found = [None for _ in range(28)]
         self.guesses = [[' ' for col in range(5)] for row in range(6)]
@@ -93,13 +92,14 @@ class GameState:
         self.time_start = 0
         self.time_taken = 0
         self.eval_grid = [[None for x in range(5)] for y in range(6)]
+        self.resigned = False
 
     def logic(self, app):
         if self.won:
             # data = ["name", "date", "time", "time taken"]
             data = [app.entry.get().upper(),
                     str(date.today().strftime("%d/%m/%y")),
-                    self.guess_num + 1,
+                    self.guess_num,
                     int(self.time_taken)]
             self.db.sql_query("INSERT INTO Leaderboard (initials, date, guessnum, timetaken, word) "
                               "VALUES("
@@ -110,7 +110,7 @@ class GameState:
                               "'" + self.goal_word + "');")  # word
             time_str = format_time(data[3])
             app.entry.delete(0, tk.END)
-            app.new_game()
+            app.new_game(greet=False)
             guess_str = str(data[2]) + " guesses!" if self.guess_num > 1 else str(data[2]) + " guess!"
             app.update_tip(str(data[0]) + " got it in " + time_str + " with " + guess_str, pauses=False)
             self.won = False
@@ -137,7 +137,7 @@ class GameState:
                 app.update_tip(guess + "... " + msg)
                 if self.guess_num == 0:
                     self.time_start = time.perf_counter()
-                self.guess_num += 1
+            self.guess_num += 1
 
     def eval_guess(self):
         word_arr = [*(self.goal_word.upper())]
@@ -163,6 +163,15 @@ class GameState:
                     self.found[qwerty_index] = 0
         self.eval_grid[self.guess_num] = match_array
 
+    def give_up(self, app):
+        self.guess_num = 6
+        app.update_tip("unlucky! 2the word was: 8" + self.goal_word)
+        self.guesses = [["😔" for col in range(5)] for row in range(6)]
+        self.eval_grid = [[0 for col in range(5)] for row in range(6)]
+        self.found = [0 for _ in range(28)]
+        app.redraw()
+
+
 
 class App(tk.Tk):
     def __init__(self, game):
@@ -180,17 +189,23 @@ class App(tk.Tk):
         self.style = ttk.Style()  # add styling
         self.style.theme_use('clam')  # add theme
         self.title = tk.LabelFrame(self, bg=MAIN_BG, padx=20, pady=0, bd=0)
-        self.title.pack(pady=10)
+        self.title.pack(pady=15)
         self.title_text = tk.Label(self.title, text="🐍ⓓⓛ", font=(FNT, 36, 'bold'), bg=MAIN_BG, fg=TXT_COL)
         self.title_text.grid(row=1, column=1)
         self.pydle = tk.LabelFrame(self, bg=MAIN_BG, padx=0, pady=0, bd=3)
-        self.reset_btn = tk.Button(self, text="(NEW)   ", font=(FNT, 14, BLD), bg=MAIN_BG, bd=0, fg=TXT_COL,
-                                   command=lambda: self.new_game())
+
+        self.reset_btn = tk.Button(self, text="NEW   ", font=(FNT, 12, BLD), bg=MAIN_BG, bd=0, fg=TXT_COL,
+                                   command=lambda: self.new_game(), anchor=tk.CENTER,
+                                   highlightthickness=0, relief='ridge')
         self.reset_btn.place(x=0, y=0)
-        self.ldrboard_btn = tk.Button(self, text="(SCORES)", font=(FNT, 14, BLD), bg=MAIN_BG, bd=0, fg=TXT_COL,
-                                      command=lambda: self.toggle_leaderboard())
-        self.ldrboard_btn.place(x=0, y=35)
-        self.leaderboard_headers = [0 for x in range(5)]
+        self.ldrboard_btn = tk.Button(self, text="SCORES", font=(FNT, 12, BLD), bg=MAIN_BG, bd=0, fg=TXT_COL,
+                                      command=lambda: self.toggle_leaderboard(), anchor=tk.CENTER,
+                                      highlightthickness=0, relief='ridge')
+        self.ldrboard_btn.place(x=0, y=30)
+        self.end_btn = tk.Button(self, text="RESIGN", font=(FNT, 12, BLD), bg=MAIN_BG, bd=0, fg=TXT_COL,
+                                 command=lambda: self.game.give_up(self), anchor=tk.CENTER,
+                                 highlightthickness=0, relief='ridge')
+        self.end_btn.place(x=0, y=60)
         self.pydle.pack()
 
         self.button_frame = tk.Canvas(self, bd=0, bg=MAIN_BG)
@@ -204,8 +219,10 @@ class App(tk.Tk):
         self.entry_frame.pack()
         self.entry = tk.Entry(self.entry_frame, bg=HILITE, font=(FNT, 36, BLD), width=13, justify=tk.CENTER, bd=3)
         self.entry.pack(padx=10, pady=0)
+
         self.cmd_btn_frame = tk.LabelFrame(self, bd=0, bg=MAIN_BG)
         self.cmd_btn_frame.pack()
+
         self.clr_btn = tk.Button(self.cmd_btn_frame, text="CLEAR", font=(FNT, 12, BLD), bd=2, bg=HILITE, fg=TXT_COL,
                                  width=12, command=lambda: self.send_btn(27))
         self.enter_btn = tk.Button(self.cmd_btn_frame, text="ENTER", font=(FNT, 12, BLD), bd=2, bg=HILITE, fg=TXT_COL,
@@ -213,14 +230,16 @@ class App(tk.Tk):
         self.clr_btn.pack(side=tk.LEFT, padx=20, pady=10)
         self.enter_btn.pack(side=tk.RIGHT, padx=20, pady=10)
         self.entry.focus()
+
         self.qwerty_frame = tk.Canvas(self, bg=MAIN_BG, bd=0, highlightthickness=0, relief='ridge')
         self.qwerty_frame.pack(pady=15)
         self.entry.bind('<Return>', lambda x=None: self.game.logic(self))
+
         self.redraw()
         self.update_tip(random.choice(GREETINGS))
 
     def update_tip(self, tip_str, pauses=True):
-        delta = 30
+        delta = 20
         delay = 0
         for x in range (len(tip_str)+1):
             sleep = 0
@@ -234,14 +253,15 @@ class App(tk.Tk):
             self.tip_canvas.after(delay+sleep,new)
             delay += delta + sleep
 
-    def new_game(self):
+    def new_game(self, greet=True):
         self.entry.delete(0, tk.END)
         self.game = GameState(self.game.db)
-        self.update_tip(random.choice(GREETINGS))
         self.redraw()
+        if greet:
+            self.update_tip(random.choice(GREETINGS))
 
     def redraw(self):
-        self.ldrboard_btn['text'] = "(SCORES)"
+        self.ldrboard_btn['text'] = "SCORES"
         self.draw_main_panel()
         self.draw_qwerty()
 
@@ -312,12 +332,12 @@ class App(tk.Tk):
             qwerty += 1
 
     def toggle_leaderboard(self):
-        if self.ldrboard_btn['text'] == "(BACK)":
-            self.ldrboard_btn['text'] = "(SCORES)"
+        if self.ldrboard_btn['text'] == "BACK  ":
+            self.ldrboard_btn['text'] = "SCORES"
             self.draw_main_panel()
             self.update_tip("hello again!")
         else:
-            self.ldrboard_btn['text'] = "(BACK)"
+            self.ldrboard_btn['text'] = "BACK  "
             self.prev_tip = self.tip_canvas.itemcget(self.tip, 'text')
             self.update_tip("this is the pydl leaderboard.")
             headers = ['INITIALS', 'DATE', 'ATTEMPTS', 'TIME', 'WORD']
@@ -328,6 +348,8 @@ class App(tk.Tk):
             records = self.game.db.sql_query("SELECT * FROM "
                                              "(SELECT * FROM Leaderboard "
                                              "ORDER BY timetaken) ORDER BY guessnum", True)
+
+            self.leaderboard_headers = [0 for x in range(5)]
             for x in range(5):
                 self.leaderboard_headers[x] = tk.Button(self.button_frame, text=headers[x], font=(FNT, 10, BLD),
                                                         bd=border, bg=HILITE, fg=TXT_COL, width=8, height=1)
