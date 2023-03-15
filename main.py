@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import random
 import sqlite3 as sq
-from datetime import date
+from datetime import date, datetime
 import time
 
 # ------------------------------------------------------------
@@ -95,6 +95,7 @@ class GameState:
         self.time_taken = 0
         self.eval_grid = [[None for x in range(5)] for y in range(6)]
         self.resigned = False
+        print(self.goal_word)
 
     def logic(self, app):
         if self.won:
@@ -115,6 +116,7 @@ class GameState:
             app.new_game(greet=False)
             guess_str = str(data[2]) + " guesses!" if self.guess_num > 1 else str(data[2]) + " guess!"
             app.update_tip(str(data[0]) + " got it in " + time_str + " with " + guess_str, pauses=False)
+            app.timelabel.reset()
             self.won = False
         elif self.guess_num == 6 and not self.won:
             app.entry.delete(0, tk.END)
@@ -131,14 +133,17 @@ class GameState:
             if evaluated_array.count(1) == 5:
                 self.won = True
                 if not self.guess_num == 0:
-                    self.time_taken = time.perf_counter() - self.time_start
+                    self.time_taken = app.timelabel.counter
                 app.update_tip("you did it!2 enter your initials:")
+                app.timelabel.running = False
             elif self.guess_num == 5:
                 app.update_tip("you failed1.1.1.2 '" + self.goal_word + "' was the word.")
+                app.timelabel.running = False
             else:
                 app.update_tip(guess + "... " + msg)
                 if self.guess_num == 0:
                     self.time_start = time.perf_counter()
+                    app.timelabel.start()
             self.guess_num += 1
 
     def eval_guess(self):
@@ -167,6 +172,7 @@ class GameState:
 
     def give_up(self, app):
         app.update_tip(".1.1.1 8better luck next time.")
+        app.timelabel.running = False
         for row in range(6):
             if row < self.guess_num:
                 self.eval_grid[row] = [3 for col in range(5)]
@@ -184,6 +190,31 @@ class GameState:
         self.guess_num = 6
         app.redraw()
 
+
+class Timer:
+    def __init__(self, frame):
+        self.counter = 0
+        self.time_str = datetime.fromtimestamp(self.counter).strftime("0m 00s")
+        self.mFrame = frame
+        self.watch = tk.Label(self.mFrame, text=self.time_str, font=(FNT, 13, BLD), bg=MAIN_BG,
+                              bd=0, fg=TXT_COL, anchor=tk.E)
+        self.watch.pack()
+        self.running = False
+
+    def start(self):
+        self.running = True
+
+        def count():
+            if self.running:
+                self.watch['text'] = format_time(self.counter)
+                self.watch.after(200, count)
+                self.counter += 0.2
+        count()
+
+    def reset(self):
+        self.counter = 0
+        self.watch['text'] = "0m 00s"
+        self.running = False
 
 
 class App(tk.Tk):
@@ -219,6 +250,10 @@ class App(tk.Tk):
                                  command=lambda: self.game.give_up(self), anchor=tk.CENTER,
                                  highlightthickness=0, relief='ridge')
         self.end_btn.place(x=0, y=60)
+
+        self.timer_canvas = tk.Canvas(self, width=100, height=80, bg=MAIN_BG, bd=0, highlightthickness=0)
+        self.timer_canvas.place(x=375, y=70)
+        self.timelabel = Timer(self.timer_canvas)
         self.pydle.pack()
 
         self.button_frame = tk.Canvas(self, bd=0, bg=MAIN_BG)
@@ -247,7 +282,6 @@ class App(tk.Tk):
         self.qwerty_frame = tk.Canvas(self, bg=MAIN_BG, bd=0, highlightthickness=0, relief='ridge')
         self.qwerty_frame.pack(pady=15)
         self.entry.bind('<Return>', lambda x=None: self.game.logic(self))
-
         self.redraw()
         self.update_tip(random.choice(GREETINGS))
 
@@ -267,6 +301,7 @@ class App(tk.Tk):
             delay += delta + sleep
 
     def new_game(self, greet=True):
+        self.timelabel.reset()
         self.entry.delete(0, tk.END)
         self.game = GameState(self.game.db)
         self.redraw()
@@ -343,6 +378,9 @@ class App(tk.Tk):
                                     bg=col, fg=TXT_COL, command=lambda x=x: self.send_btn(x))
             self.btn[x].grid(column=x, row=current_row)
             qwerty += 1
+
+    def display_time(self):
+        pass
 
     def toggle_leaderboard(self):
         if self.ldrboard_btn['text'] == "BACK  ":
