@@ -17,7 +17,9 @@ EVAL_LTRS = {
     None: "#ffdd7d",  # init colour for qwerty keyboard
     0: "#d44c4c",  # letter not found in word
     1: "#4ed433",  # letter found at correct pos
-    2: "#ffe505"  # letter found at incorrect pos
+    2: "#ffe505",  # letter found at incorrect pos
+    3: "#988e67",  # dark grey
+    4: "#d9cc96"   # light grey
 }
 QWERTY = "QWERTYUIOPASDFGHJKLZXCVBNM⏎␡"
 FNT = 'consolas'
@@ -32,7 +34,7 @@ MSG = {  # added numbers represent pauses when the text is drawn
     1: "3OK, not bad.",
     2: "4great.",
     3: "3brilliant.",
-    4: "3impressive, 1very nice.",
+    4: "3impressive, 2very nice.",
     5: "4wow - nice work.",
     6: "6:O !!!"
 }
@@ -164,11 +166,22 @@ class GameState:
         self.eval_grid[self.guess_num] = match_array
 
     def give_up(self, app):
+        app.update_tip(".1.1.1 8better luck next time.")
+        for row in range(6):
+            if row < self.guess_num:
+                self.eval_grid[row] = [3 for col in range(5)]
+            if row >= self.guess_num:
+                self.guesses[row] = ["😔" for col in range(5)] # 😔
+                self.eval_grid[row] = [3 for col in range(5)]
+            if row == 5:
+                self.guesses[row] = [self.goal_word[col] for col in range(5)]  # 😔
+                self.eval_grid[row] = [4 for col in range(5)]
+        for letter in range(28):
+            if QWERTY[letter] in self.goal_word:
+                self.found[letter] = 4
+            else:
+                self.found[letter] = 3
         self.guess_num = 6
-        app.update_tip("unlucky! 2the word was: 8" + self.goal_word)
-        self.guesses = [["😔" for col in range(5)] for row in range(6)]
-        self.eval_grid = [[0 for col in range(5)] for row in range(6)]
-        self.found = [0 for _ in range(28)]
         app.redraw()
 
 
